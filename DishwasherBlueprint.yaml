@@ -1,0 +1,55 @@
+blueprint:
+  name: Dishwasher Monitor
+  description: Monitors a dishwasher using a current sensor and door switch.
+  domain: automation
+  input:
+    current_sensor:
+      name: Current Sensor
+      description: The current sensor entity.
+      selector:
+        entity:
+          domain: sensor
+          device_class: current
+    door_switch:
+      name: Door Switch
+      description: The door switch entity.
+      selector:
+        entity:
+          domain: binary_sensor
+    clean_threshold:
+      name: Clean Threshold
+      description: The current threshold above which the dishwasher is considered clean.
+      default: 1
+    dirty_threshold:
+      name: Dirty Threshold
+      description: The current threshold below which the dishwasher is considered dirty.
+      default: 0
+    action:
+      name: Action
+      description: The action to take when the dishwasher is clean or dirty.
+      default:
+        service: notify.notify
+        data:
+          message: The dishwasher is {{ states.sensor.dishwasher_status.state }}.
+  trigger:
+  - platform: state
+    entity_id:
+    - "{{ input.current_sensor }}"
+    - "{{ input.door_switch }}"
+    to:
+    - "{{ input.clean_threshold }}"
+    - "{{ input.dirty_threshold }}"
+  condition:
+  - condition: state
+    entity_id: "{{ input.current_sensor }}"
+    state: >
+      {{ states.input.current_sensor.state | int > input.clean_threshold }}
+      and
+      {{ states.input.current_sensor.last_changed | timestamp_custom('%s') - states.input.current_sensor.last_updated | timestamp_custom('%s') > 60 }}
+      and
+      {{ states.input.current_sensor.last_changed | timestamp_custom('%s') - states.input.current_sensor.last_updated | timestamp_custom('%s') < 900 }}
+  action:
+  - service: "{{ input.action }}"
+    data:
+      message: The dishwasher is {{ states.sensor.dishwasher_status.state }}.
+  mode: single
